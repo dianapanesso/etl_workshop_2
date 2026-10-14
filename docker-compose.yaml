@@ -1,0 +1,44 @@
+services:
+  # Tu base de datos fuente (Intacta)
+  grammy_source_db:
+    image: mysql:8.0
+    container_name: grammy_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: grammy_db
+      MYSQL_USER: uao_user
+      MYSQL_PASSWORD: uao_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./data:/var/lib/mysql-files/
+      - ./sql:/docker-entrypoint-initdb.d
+
+  # Base de datos interna para Airflow
+  postgres_airflow:
+    image: postgres:15
+    container_name: airflow_db
+    environment:
+      - POSTGRES_USER=airflow
+      - POSTGRES_PASSWORD=airflow
+      - POSTGRES_DB=airflow
+    ports:
+      - "5433:5432"
+
+  # Airflow versión 3.1.8 (Modo Standalone)
+  airflow-standalone:
+    image: apache/airflow:3.1.8
+    container_name: airflow_standalone
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres_airflow/airflow
+      - AIRFLOW__CORE__LOAD_EXAMPLES=false
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./src:/opt/airflow/src
+      - ./gx:/opt/airflow/gx
+      - ./data:/opt/airflow/data
+    ports:
+      - "8080:8080"
+    command: airflow standalone
+    depends_on:
+      - postgres_airflow

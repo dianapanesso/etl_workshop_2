@@ -1,0 +1,25 @@
+# Workshop 2: Reliable Batch Data Pipeline (Spotify & Grammys)
+
+## 1. Requisitos Analíticos
+| Requisito | Datos Requeridos | KPI / Visualización |
+|-----------|------------------|---------------------|
+| 1. ¿Cómo ha evolucionado el volumen de premios musicales a lo largo de las décadas? | `year` (Grammys), `track_id` (Spotify) | Gráfico de barras/líneas: Tracks por Año |
+| 2. ¿Cuáles son los artistas con mayor presencia histórica en los premios? | `artists` (Ambos), `popularity` (Spotify) | Gráfico de barras horizontales: Top Artistas |
+| 3. ¿Cómo se distribuyen las pistas ganadoras entre las categorías oficiales? | `category` (Grammys), `track_id` (Spotify) | Gráfico de Treemap/Barras: Tracks por Categoría |
+
+## 2. Reglas de Calidad (Great Expectations)
+Se implementaron validaciones en capas crudas y preparadas:
+1. **Completitud:** `track_id` y `artists` no deben ser nulos (Crítico).
+2. **Consistencia de Fechas:** `year` debe ser un número entero válido >= 1958 (Advertencia).
+3. **Integridad Referencial:** Las llaves foráneas (`artist_id`, `year_id`, `category_id`) deben existir en sus respectivas dimensiones antes de cargar la tabla de hechos (Crítico).
+
+## 3. Matriz de Trazabilidad
+| Requisito | Regla DQ | Transformación | Elemento DW |
+|-----------|----------|----------------|-------------|
+| Evolución por década | Año no nulo | Extracción directa de 62 años de Grammys CSV | `dim_year`, `fact_music_performance` |
+| Top Artistas | Artista no nulo | `fillna('Unknown Artist')` y limpieza de texto | `dim_artist`, `fact_music_performance` |
+| Distribución Categorías | Categoría consistente | Left join con priorización de base Grammys | `dim_category`, `fact_music_performance` |
+
+## 4. Política de Fallos y Repetibilidad
+* **Fallo Crítico Controlado:** Si Great Expectations detecta nulos en el ID de la canción, el pipeline detiene la carga al Data Warehouse para evitar corrupción analítica.
+* **Repetibilidad Segura:** Se utiliza `if_exists='replace'` en la carga a MySQL. Si el DAG se ejecuta dos veces, no se duplican los registros en el Data Warehouse.
